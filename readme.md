@@ -8,7 +8,7 @@
 1. Clone spurfies and set up env.
 ```bash
 # clone repo
-git clone 
+git clone https://github.com/kevinYitshak/spurfies.git
 
 # create env
 conda create -n custom_name python=3.11 cmake=3.14.0

@@ -67,19 +67,20 @@ class PointVolSDF(nn.Module):
         self._init_neural_info()
         logger.info("loaded neural_pts onto voxelgrid")
 
-        self.position_encoding, mlp_in_dim = get_embedder(multires=4, input_dims=3)
-        self.direction_encoding, dir_in_dim = get_embedder(
+        self.position_encoding, pos_in_dim = get_embedder(
             multires=6, input_dims=3
         )
+        self.view_encoding, dir_in_dim = get_embedder(
+            multires=3, input_dims=3
+        )
         self.F_color = nn.Sequential(
-            nn.Linear(conf.feature_vector_size + dir_in_dim, 256, bias=True),
+            nn.Linear(conf.feature_vector_size + pos_in_dim, 256, bias=True),
             nn.LeakyReLU(inplace=True),
             nn.Linear(256, 256, bias=True),
             nn.LeakyReLU(inplace=True),
             nn.Linear(256, 256, bias=True),
             nn.LeakyReLU(inplace=True),
             nn.Linear(256, 256, bias=True),
-            # nn.LeakyReLU(inplace=True),
         )
 
         self.F_geometry = nn.Sequential(
@@ -325,7 +326,7 @@ class PointVolSDF(nn.Module):
 
         _ray_dirs = ray_dirs[self.ray_mask]  # [valid_rays, 3]
 
-        pos_relative_vectors = self.direction_encoding(x_pi)
+        pos_relative_vectors = self.position_encoding(x_pi)
         field_in_color = torch.concat([pos_relative_vectors, kp["feat"]], dim=-1)
         feat_color = self.F_color(field_in_color)
 
@@ -337,7 +338,7 @@ class PointVolSDF(nn.Module):
         _ray_dirs = _ray_dirs.unsqueeze(1).expand(-1, self.conf.max_shading_pts, -1)[
             self.valid_neural_pts_mask
         ]
-        encoded_dir = self.direction_encoding(_ray_dirs)
+        encoded_dir = self.view_encoding(_ray_dirs)
 
         mlp_out = [encoded_dir, agg_feat_color]
         colors = self.R(torch.concat(mlp_out, dim=-1))
@@ -476,7 +477,6 @@ class PointVolSDF(nn.Module):
             norm_pseudo = torch.zeros(num_valid_pts_pseudo, device=x_pi_pseudo.device)
             norm_pseudo.index_add_(0, idx_pseudo, intrp_weights_pseudo)
 
-            # pos_relative_vectors = self.position_encoding(x_pi_pseudo)
             # TODO: swap concat to test disent
             field_in_neural = torch.concat(
                 [kp_pseudo["feat_geometry"], x_pi_pseudo], dim=-1
@@ -569,7 +569,6 @@ class PointVolSDF(nn.Module):
             norm_reg = torch.zeros(num_valid_pts_reg, device=x_pi_reg.device)
             norm_reg.index_add_(0, idx_reg, intrp_weights_reg)
 
-            # pos_relative_vectors = self.position_encoding(x_pi_reg)
             # TODO: swap concat to test disent
             field_in_reg = torch.concat([kp_reg["feat_geometry"], x_pi_reg], dim=-1)
             # aggregator

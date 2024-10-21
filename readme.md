@@ -66,8 +66,8 @@ python eval_vsdf.py --conf mipnerf --data_dir_root data --scan_ids garden --gpu 
 
 4. Evaluate Mesh
 ```bash
-# dtu 24
-python evals/eval_dtu.py --datadir dtu --scan 24 --data_dir_root data
+# dtu
+python evals/eval_dtu.py --datadir dtu --scan -1 --data_dir_root data
 ```
 5. Evaluate NVS
 ```bash

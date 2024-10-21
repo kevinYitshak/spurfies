@@ -1,0 +1,58 @@
+defaults:
+  - vol: dtu #_pn
+  - _self_
+  - override hydra/hydra_logging: disabled  
+  - override hydra/job_logging: disabled  
+
+# Disable file output of hydra
+hydra:
+  output_subdir: null  
+  run:  
+    dir: .
+
+# general
+gpu: auto
+num_view: 3
+testlist: scan106 # or testlist='*.txt' with a list of scans
+outdir: exps_mvs # output for MVS
+exps_folder: exps_vsdf # output for VolSDF
+
+# data
+data_dir_root: data # images & cams, pair.txt & depth range
+max_h: 576
+max_w: 768
+trains_i: 22, 25, 28 #40, 44, 48 # 0, 8, 13 
+
+# VolSDF
+use_mvs: false # TODO
+opt_stepNs: [100000,0,0]
+grad_clip: true
+
+# MVS
+mvs_model_name: casmvsnet # or ucsnet or transmvsnet
+ndepths: 192,32,8
+depth_inter_r: 1,0.5,0.5 # depth interval
+use_nerf_d: [1,0,0]
+x2_mvsres: true # enlarge images to (1152, 1536) for better MVS
+inverse_depth: false # sample inverse depth for unbounded scenes
+prevent_oom: false
+ablate: false # MVS only
+## - default
+share_cr: false
+cr_base_chs: 8,8,8
+grad_method: detach
+interval_scale: 1.06
+numdepth: 192
+## dataloader for MVS
+num_workers: 0
+batch_size: 1
+
+# evaluation
+eval_mask: true # for point cloud, foreground object
+filter_only: false # already inferred depth, apply different filter parameters
+## filter
+filter_dist: 1
+filter_diff: 0.01
+conf: 0.0
+thres_view: 1
+num_worker: 4

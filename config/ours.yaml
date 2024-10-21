@@ -1,0 +1,23 @@
+defaults:
+  - base
+  - _self_
+
+outdir: exps_mvs
+exps_folder: exps_vsdf
+opt_stepNs: [100000,0,0]
+
+vol:
+  train:
+    expname : ours
+    render_freq: 500
+    checkpoint_freq : 15000
+    num_pixels : 1024
+  loss:
+    local_weight : 0.5
+    pseudo_weight : 0.5
+    eikonal_weight : 0.001
+    rgb_weight : 1.0
+    tv_weight: 0.01
+  model:
+    ray_sampler:
+      near: 0.5

@@ -1,0 +1,60 @@
+import os
+from glob import glob
+import torch
+import numpy as np
+
+def mkdir_ifnotexists(directory):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+def get_class(kls):
+    parts = kls.split('.')
+    module = ".".join(parts[:-1])
+    m = __import__(module)
+    for comp in parts[1:]:
+        m = getattr(m, comp)
+    return m
+
+def glob_imgs(path):
+    imgs = []
+    for ext in ['*.png', '*.jpg', '*.JPEG', '*.JPG']:
+        imgs.extend(glob(os.path.join(path, ext)))
+    return imgs
+
+def split_input(model_input, total_pixels, n_pixels=10000):
+    '''
+     Split the input to fit Cuda memory for large resolution.
+     Can decrease the value of n_pixels in case of cuda out of memory error.
+     '''
+    split = []
+    for i, indx in enumerate(torch.split(torch.arange(total_pixels).cuda(), n_pixels, dim=0)):
+        data = model_input.copy()
+        data['uv'] = torch.index_select(model_input['uv'], 1, indx)
+        if 'object_mask' in data:
+            data['object_mask'] = torch.index_select(model_input['object_mask'], 1, indx)
+        for key in ['rgb']:
+            if key in data:
+                data[key] = torch.index_select(model_input[key], 1, indx)
+        split.append(data)
+    return split
+
+def merge_output(res, total_pixels, batch_size):
+    ''' Merge the split output. '''
+
+    model_outputs = {}
+    for entry in res[0]:
+        if res[0][entry] is None:
+            continue
+        if len(res[0][entry].shape) == 1:
+            model_outputs[entry] = torch.cat([r[entry].reshape(batch_size, -1, 1) for r in res],
+                                             1).reshape(batch_size * total_pixels)
+        elif len(res[0][entry].shape) == 2:
+            model_outputs[entry] = torch.cat([r[entry].reshape(batch_size, -1, r[entry].shape[-1]) for r in res],
+                                             1).reshape(batch_size * total_pixels, -1)
+        elif len(res[0][entry].shape) == 3:
+            model_outputs[entry] = torch.cat([r[entry].reshape(batch_size, -1, r[entry].shape[-2], r[entry].shape[-1]) for r in res],
+                                             1).reshape(batch_size * total_pixels, -1, res[0][entry].shape[-1])
+        else:
+            raise NotImplementedError
+
+    return model_outputs

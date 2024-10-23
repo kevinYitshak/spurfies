@@ -1,3 +1,6 @@
 [submodule "torch_knnquery"]
 	path = torch_knnquery
 	url = https://github.com/janericlenssen/torch_knnquery
+[submodule "dust3r"]
+	path = dust3r
+	url = https://github.com/naver/dust3r

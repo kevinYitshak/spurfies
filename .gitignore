@@ -165,6 +165,7 @@ cython_debug/
 dust3r/checkpoints
 lpipsPyTorch/weights
 
+mesh_results/
 ckpt/
 data/
 results/

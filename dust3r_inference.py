@@ -19,12 +19,13 @@ import plyfile
 from plyfile import PlyData, PlyElement
 import cv2
 
-from dust3r.dust3r.inference import inference, load_model
-from dust3r.dust3r.image_pairs import make_pairs
-from dust3r.dust3r.utils.image import load_images, rgb
-from dust3r.dust3r.utils.device import to_numpy
-from dust3r.dust3r.viz import add_scene_cam, CAM_COLORS, OPENGL, pts3d_to_trimesh, cat_meshes
-from dust3r.dust3r.cloud_opt import global_aligner, GlobalAlignerMode
+from dust3r.inference import inference
+from dust3r.model import load_model
+from dust3r.image_pairs import make_pairs
+from dust3r.utils.image import load_images, rgb
+from dust3r.utils.device import to_numpy
+from dust3r.viz import add_scene_cam, CAM_COLORS, OPENGL, pts3d_to_trimesh, cat_meshes
+from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
 import open3d as o3d
 import matplotlib.pyplot as pl
 import json
@@ -169,7 +170,7 @@ def get_3D_model_from_scene(
 
 import numpy as np
 from scipy.spatial import cKDTree
-
+'''
 def sample_pointcloud(points, colors, target_distance):
     N = points.shape[0]
     sampled_indices = [np.random.randint(N)]
@@ -192,6 +193,47 @@ def sample_pointcloud(points, colors, target_distance):
                 break
     
     return points[np.array(sampled_indices[:-1])], colors[np.array(sampled_indices[:-1])]
+'''
+import numpy as np
+from scipy.spatial import cKDTree
+
+def sample_pointcloud(points, colors, target_distance):
+    N = points.shape[0]
+    
+    target_distance_sq = target_distance ** 2
+    
+    sampled_indices = np.zeros(N, dtype=np.int32)
+    sampled_indices[0] = np.random.randint(N)
+    
+    distances = np.full(N, np.inf)
+    n_sampled = 1
+
+    diff = np.zeros_like(points)
+    
+    while n_sampled < N:
+        last_point = points[sampled_indices[n_sampled - 1]]
+        
+        np.subtract(points, last_point, out=diff)
+        current_dist = np.sum(diff * diff, axis=1)
+        np.minimum(distances, current_dist, out=distances)
+        
+        farthest_idx = np.argmax(distances)
+        sampled_indices[n_sampled] = farthest_idx
+        n_sampled += 1
+        
+        if n_sampled % 100 == 0 or distances[farthest_idx] < target_distance_sq:
+            sampled_points = points[sampled_indices[:n_sampled]]
+            tree = cKDTree(sampled_points)
+            
+            # Query only nearest neighbor distances
+            avg_distance = np.mean(tree.query(sampled_points, k=2)[0][:, 1])
+            
+            if avg_distance < target_distance:
+                break
+    
+    # Return only the valid sampled indices
+    final_indices = sampled_indices[:n_sampled]
+    return points[final_indices], colors[final_indices]
 
 def get_3D_pc_from_scene(
     outdir,
@@ -719,7 +761,7 @@ if __name__ == "__main__":
     parser = get_args_parser()
     args = parser.parse_args()
 
-    model_path = "dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
+    model_path = "checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
     device = "cuda"
     batch_size = 1
     schedule = "cosine"

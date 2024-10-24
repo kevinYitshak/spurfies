@@ -1,6 +1,7 @@
 ## Spurfies
 
 Implementation of **Spurfies: Sparse Surface Reconstruction using Local Geometry Priors**
+
 [[Project page](https://geometric-rl.mpi-inf.mpg.de/spurfies/)] | [[arxiv](https://arxiv.org/abs/2408.16544)] | 
 [[data & ckpt](https://drive.google.com/drive/folders/1xp17J_DPpr4dJ6NgEe76n1UGOZSJtcyC?usp=sharing)]
 

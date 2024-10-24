@@ -121,7 +121,3 @@ scene = trimesh.Scene()
 scene.add_geometry(poses_vis)
 scene.add_geometry(pts)
 scene.show()
-
-"""
-
-

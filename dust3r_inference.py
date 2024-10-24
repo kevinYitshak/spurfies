@@ -10,6 +10,7 @@ import gradio
 import os
 import torch
 import numpy as np
+from scipy.spatial import cKDTree
 import tempfile
 import functools
 import trimesh
@@ -57,145 +58,13 @@ def get_args_parser():
         default='24',
         help="dtu: [21,24,34,37,38,40,82,106,110,114,118]; mipnerf: [garden, stump]"
     )
-    return parser
-
-
-def save_point_cloud_to_ply(points, filename, colors=None):
-    num_points = len(points)
-    
-    data = np.zeros(num_points, dtype=[('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('red', 'u1'), ('green', 'u1'), ('blue', 'u1')])
-    data['x'] = points[:, 0]
-    data['y'] = points[:, 1]
-    data['z'] = points[:, 2]
-    if colors is not None:
-        data['red'] = colors[:, 0]
-        data['green'] = colors[:, 1]
-        data['blue'] = colors[:, 2]
-
-    vertex = PlyElement.describe(data, 'vertex')
-    PlyData([vertex]).write(filename)
-
-
-def _convert_scene_output_to_glb(
-    outdir,
-    scene_name,
-    imgs,
-    pts3d,
-    mask,
-    focals,
-    cams2world,
-    cam_size=0.05,
-    cam_color=None,
-    as_pointcloud=False,
-    transparent_cams=False,
-):
-    assert len(pts3d) == len(mask) <= len(imgs) <= len(cams2world) == len(focals)
-    pts3d = to_numpy(pts3d)
-    imgs = to_numpy(imgs)
-    focals = to_numpy(focals)
-    cams2world = to_numpy(cams2world)
-
-    scene = trimesh.Scene()
-
-    # full pointcloud
-    if as_pointcloud:
-        pts = np.concatenate([p[m] for p, m in zip(pts3d, mask)])
-        col = np.concatenate([p[m] for p, m in zip(imgs, mask)])
-        pct = trimesh.PointCloud(pts.reshape(-1, 3), colors=col.reshape(-1, 3))
-        # save_point_cloud_to_ply(pts, '/BS/local_diffusion/work/dust3r/estimation/21.ply', col*255)
-        scene.add_geometry(pct)
-    else:
-        meshes = []
-        for i in range(len(imgs)):
-            meshes.append(pts3d_to_trimesh(imgs[i], pts3d[i], mask[i]))
-        mesh = trimesh.Trimesh(**cat_meshes(meshes))
-        scene.add_geometry(mesh)
-
-    rot = np.eye(4)
-    type = ""
-    if as_pointcloud:
-        type = "pointcloud"
-    else:
-        type = "mesh"
-    rot[:3, :3] = Rotation.from_euler("y", np.deg2rad(180)).as_matrix()
-    scene.apply_transform(np.linalg.inv(cams2world[0] @ OPENGL @ rot))
-    outfile = os.path.join(outdir, f"{scene_name}_{type}.glb")
-    print("(exporting 3D scene to", outfile, ")")
-    scene.export(file_obj=outfile)
-    return outfile
-
-
-def get_3D_model_from_scene(
-    outdir,
-    scene_name,
-    scene,
-    min_conf_thr=3,
-    as_pointcloud=False,
-    mask_sky=False,
-    clean_depth=False,
-    transparent_cams=False,
-    cam_size=0.05,
-):
-    """
-    extract 3D_model (glb file) from a reconstructed scene
-    """
-    if scene is None:
-        return None
-    # post processes
-    if clean_depth:
-        scene = scene.clean_pointcloud()
-    if mask_sky:
-        scene = scene.mask_sky()
-
-    # get optimized values from scene
-    rgbimg = scene.imgs
-    focals = scene.get_focals().cpu()
-    cams2world = scene.get_im_poses().cpu()
-    # 3D pointcloud from depthmap, poses and intrinsics
-    pts3d = to_numpy(scene.get_pts3d())
-    scene.min_conf_thr = float(scene.conf_trf(torch.tensor(min_conf_thr)))
-    msk = to_numpy(scene.get_masks())
-    return _convert_scene_output_to_glb(
-        outdir,
-        scene_name,
-        rgbimg,
-        pts3d,
-        msk,
-        focals,
-        cams2world,
-        as_pointcloud=as_pointcloud,
-        transparent_cams=transparent_cams,
-        cam_size=cam_size,
+    parser.add_argument(
+        "--subsample",
+        type=float,
+        default=0.025,
+        help="subsample points to match same density as prior training"
     )
-
-import numpy as np
-from scipy.spatial import cKDTree
-'''
-def sample_pointcloud(points, colors, target_distance):
-    N = points.shape[0]
-    sampled_indices = [np.random.randint(N)]
-    distances = np.full(N, np.inf)
-    
-    while True:
-        last_point = points[sampled_indices[-1]]
-        dist = np.linalg.norm(points - last_point, axis=1)
-        distances = np.minimum(distances, dist)
-        
-        farthest_index = np.argmax(distances)
-        sampled_indices.append(farthest_index)
-        
-        if len(sampled_indices) > 1:
-            sampled_points = points[sampled_indices]
-            tree = cKDTree(sampled_points)
-            avg_distance = np.mean(tree.query(sampled_points, k=2)[0][:, 1])
-            
-            if avg_distance < target_distance:
-                break
-    
-    return points[np.array(sampled_indices[:-1])], colors[np.array(sampled_indices[:-1])]
-'''
-import numpy as np
-from scipy.spatial import cKDTree
+    return parser
 
 def sample_pointcloud(points, colors, target_distance):
     N = points.shape[0]
@@ -236,7 +105,6 @@ def sample_pointcloud(points, colors, target_distance):
     return points[final_indices], colors[final_indices]
 
 def get_3D_pc_from_scene(
-    outdir,
     scene,
     min_conf_thr=3,
     as_pointcloud=False,
@@ -268,121 +136,8 @@ def get_3D_pc_from_scene(
     msk = to_numpy(scene.get_masks())
     pts = np.concatenate([p[m] for p, m in zip(pts3d, msk)])
     col = np.concatenate([p[m] for p, m in zip(rgbimg, msk)])
-    # pct = trimesh.PointCloud(pts.reshape(-1, 3), colors=col.reshape(-1, 3))
-    
-    if subsample > 0:
-        print('---subsampling pts---')
-        pts *= scale_factor
-        pts, col = sample_pointcloud(pts, col, target_distance=subsample)
-    else:
-        pts *= scale_factor
-        
-    save_point_cloud_to_ply(pts, f'{outdir}', col*255)
-
-def get_reconstructed_scene(
-    outdir,
-    model,
-    device,
-    image_size,
-    filelist,
-    schedule,
-    niter,
-    min_conf_thr,
-    as_pointcloud,
-    mask_sky,
-    clean_depth,
-    transparent_cams,
-    cam_size,
-    scenegraph_type,
-    winsize,
-    refid,
-):
-    """
-    from a list of images, run dust3r inference, global aligner.
-    then run get_3D_model_from_scene
-    """
-    imgs = load_images(filelist, size=image_size)
-    if len(imgs) == 1:
-        imgs = [imgs[0], copy.deepcopy(imgs[0])]
-        imgs[1]["idx"] = 1
-    if scenegraph_type == "swin":
-        scenegraph_type = scenegraph_type + "-" + str(winsize)
-    elif scenegraph_type == "oneref":
-        scenegraph_type = scenegraph_type + "-" + str(refid)
-
-    pairs = make_pairs(
-        imgs, scene_graph=scenegraph_type, prefilter=None, symmetrize=True
-    )
-    output = inference(pairs, model, device, batch_size=batch_size)
-
-    mode = (
-        GlobalAlignerMode.PointCloudOptimizer
-        if len(imgs) > 2
-        else GlobalAlignerMode.PairViewer
-    )
-    scene = global_aligner(output, device=device, mode=mode)
-    lr = 0.01
-
-    if mode == GlobalAlignerMode.PointCloudOptimizer:
-        loss = scene.compute_global_alignment(
-            init="mst", niter=niter, schedule=schedule, lr=lr
-        )
-
-    outfile = get_3D_model_from_scene(
-        outdir,
-        scene,
-        min_conf_thr,
-        as_pointcloud,
-        mask_sky,
-        clean_depth,
-        transparent_cams,
-        cam_size,
-    )
-
-    # also return rgb, depth and confidence imgs
-    # depth is normalized with the max value for all images
-    # we apply the jet colormap on the confidence maps
-    rgbimg = scene.imgs
-    depths = to_numpy(scene.get_depthmaps())
-    confs = to_numpy([c for c in scene.im_conf])
-    cmap = pl.get_cmap("jet")
-    depths_max = max([d.max() for d in depths])
-    depths = [d / depths_max for d in depths]
-    confs_max = max([d.max() for d in confs])
-    confs = [cmap(d / confs_max) for d in confs]
-
-    imgs = []
-    for i in range(len(rgbimg)):
-        imgs.append(rgbimg[i])
-        imgs.append(rgb(depths[i]))
-        imgs.append(rgb(confs[i]))
-
-    return scene, outfile, imgs
-
-
-
-def save_camera_poses(poses: torch.tensor, file_names: list, path: str) -> None:
-    # convert pose to nparray
-    M_ext = dict()
-    assert len(file_names) == len(poses)
-    for pose, view_name in zip(poses, file_names):
-        image_file = f"{view_name}"
-        M_ext[view_name] = pose.tolist()
-    file_path = os.path.join("./estimation", path)
-    if not os.path.isfile(file_path):
-        os.mknod(file_path)
-    with open(file_path, "w") as f:
-        format_M_ext = {"extrinsics": M_ext}
-        json.dump(format_M_ext, f)
-
-
-def save_point_to_ply(points: np.ndarray, file_name: str) -> None:
-    _, dim = points.shape
-    if dim == 4:
-        points = points[:, :3]
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
-    o3d.io.write_point_cloud(os.path.join("./estimation/", file_name), pcd)
+    pointcloud = trimesh.PointCloud(vertices=pts*scale_factor, colors=col)
+    return pointcloud
 
 
 def load_K_Rt_from_P(filename, P=None):
@@ -549,7 +304,7 @@ if __name__ == "__main__":
     output = inference(pairs, model, device, batch_size=batch_size)
 
     scene = global_aligner(
-        output, device=device, mode=GlobalAlignerMode.ModularPointCloudOptimizer, fx_and_fy=True #PointCloudOptimizer
+        output, device=device, mode=GlobalAlignerMode.ModularPointCloudOptimizer, fx_and_fy=True
     )
 
     
@@ -568,13 +323,23 @@ if __name__ == "__main__":
     imgs = scene.imgs
     focals = scene.get_focals()                                                                                                                                                                                                                                                                                         
     poses = scene.get_im_poses()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+
     pts3d = scene.get_pts3d()
     confidence_masks = scene.get_masks()
-
+  
     if args.dataset == 'dtu':
         save_points_path = f'../data/{args.dataset}/scan{scan_id}/{str(scan_id)}.ply'
     else:
         save_points_path = f'../data/{args.dataset}/{scan_id}/{str(scan_id)}.ply'
-    get_3D_pc_from_scene(save_points_path, scene, min_conf_thr=10, as_pointcloud=True, mask_sky=True, 
-                            clean_depth=True, scale_factor=1/scale_factor, subsample=0.025)
+    pointcloud = get_3D_pc_from_scene(scene, min_conf_thr=10, as_pointcloud=True, mask_sky=True, 
+                            clean_depth=True, scale_factor=1/scale_factor)
+
+    # subsample points
+    if args.subsample:
+        print('---subsampling pts to match same density of neural points---')
+        print('--- might take some time ---')
+        pointcloud.vertices, pointcloud.colors = \
+            sample_pointcloud(pointcloud.vertices, pointcloud.colors, target_distance=args.subsample)
+    
+    # save pointcloud
+    pointcloud.export(save_points_path)

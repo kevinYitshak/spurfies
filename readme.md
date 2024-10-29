@@ -16,6 +16,7 @@ The code is compatible with python-3.11, torch-2.0, and cuda-11.8
 git clone https://github.com/kevinYitshak/spurfies.git
 git submodule update --init --recursive
 mv dust3r_inferfence.py dust3r
+mv dust3r_inferfence_own.py dust3r
 
 # create env
 conda create -n *custom_name* python=3.11 cmake=3.14.0
@@ -50,15 +51,23 @@ https://github.com/naver/dust3r/tree/main?tab=readme-ov-file#checkpoints
    - **data:** contains dtu and mipnerf datasets
 
 ## Usage on own data
-
+1. Place your images in the 'data/own_data/scene_name/image'.
 ```bash
+cd dust3r
+python dust3r_inference_own.py --views 3 --dataset own_data --scan_id 'scene_name' 
+```
+This will save the resized images (512x384), camera pose (opencv format), and the pointcloud in ``/data/own_data/scene_name`` folder obtained from DUSt3R, which we use it to train Spurfies. Note: The quality of the reconstruction depends upon the pointcloud obtained from DUSt3R. **Replace 'scene_name' with your own**
 
+2. Training spurfies:
+```bash
+python runner.py testlist=scene_name vol=own_data outdir=results/own_data/scene_name exps_folder=results/own_data/scene_name opt_stepNs=[100_000,0,0]
 ```
 
 ## Usage
 
 1. Get Neural Points using DUSt3R from known camera pose **(already provided in data)**:
 ```bash
+cd dust3r
 # dtu
 python dust3r_inference.py --views 3 --dataset dtu --scan_id [21,24,34,37,38,40,82,106,110,114,118]
 
@@ -67,12 +76,14 @@ python dust3r_inference.py --views 3 --dataset mipnerf --scan_id [garden,stump]
 ```
 
 2. Training spurfies:
+
+In this stage, the geometry latent code, color latent code, and color network is optimized using differentiable volume rendering. The geometry network is frozen with local geometry prior.
 ```bash
 # dtu 24
 python runner.py testlist=scan24 vol=dtu_pn outdir=results/dtu/24   exps_folder=results/dtu/24 opt_stepNs=[100_000,0,0]
 
 # mipnerf garden
-python runner.py testlist=garden vol=dtu_pn outdir=results/mipnerf/garden   exps_folder=results/mipnerf/garden opt_stepNs=[100_000,0,0]
+python runner.py testlist=garden vol=mip_nerf outdir=results/mipnerf/garden   exps_folder=results/mipnerf/garden opt_stepNs=[100_000,0,0]
 ```
 3. Rendering NVS and Mesh
 ```bash
@@ -95,13 +106,23 @@ python eval_spurfies.py --conf dtu_pn --data_dir_root data --eval_rendering --ex
 ```
 
 ## Credits
-Code built upon [S-VolSDF: Sparse Multi-View Stereo Regularization of Neural Implicit Surfaces](https://hao-yu-wu.github.io/s-volsdf/)
+Code built upon:
+-  [S-VolSDF: Sparse Multi-View Stereo Regularization of Neural Implicit Surfaces](https://hao-yu-wu.github.io/s-volsdf/)
 ```bibtex
 @article{wu2023s,
   title={S-VolSDF: Sparse Multi-View Stereo Regularization of Neural Implicit Surfaces},
   author={Wu, Haoyu and Graikos, Alexandros and Samaras, Dimitris},
-  journal={arXiv preprint arXiv:2303.17712},
+  journal={ICCV},
   year={2023}
+}
+```
+- [DUSt3R: Geometric 3D Vision Made Easy](https://europe.naverlabs.com/research/publications/dust3r-geometric-3d-vision-made-easy/) for obtaining neural points.
+```bibtex
+@inproceedings{dust3r_cvpr24,
+      title={DUSt3R: Geometric 3D Vision Made Easy}, 
+      author={Shuzhe Wang and Vincent Leroy and Yohann Cabon and Boris Chidlovskii and Jerome Revaud},
+      booktitle = {CVPR},
+      year = {2024}
 }
 ```
 

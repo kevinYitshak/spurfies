@@ -28,25 +28,6 @@ use_mvs: false # TODO
 opt_stepNs: [100000,0,0]
 grad_clip: true
 
-# MVS
-mvs_model_name: casmvsnet # or ucsnet or transmvsnet
-ndepths: 192,32,8
-depth_inter_r: 1,0.5,0.5 # depth interval
-use_nerf_d: [1,0,0]
-x2_mvsres: true # enlarge images to (1152, 1536) for better MVS
-inverse_depth: false # sample inverse depth for unbounded scenes
-prevent_oom: false
-ablate: false # MVS only
-## - default
-share_cr: false
-cr_base_chs: 8,8,8
-grad_method: detach
-interval_scale: 1.06
-numdepth: 192
-## dataloader for MVS
-num_workers: 0
-batch_size: 1
-
 # evaluation
 eval_mask: true # for point cloud, foreground object
 filter_only: false # already inferred depth, apply different filter parameters

@@ -17,7 +17,7 @@ def get_class(kls):
 
 def glob_imgs(path):
     imgs = []
-    for ext in ['*.png', '*.jpg', '*.JPEG', '*.JPG']:
+    for ext in ['*.png', '*.jpg', '*.JPEG', '*.JPG', '*.jpeg']:
         imgs.extend(glob(os.path.join(path, ext)))
     return imgs
 

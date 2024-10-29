@@ -20,5 +20,6 @@ imageio==2.33.1
 tensorboard==2.16.2
 tqdm==4.66.1
 plyfile==1.0.3
+pyglet==1.5.29
 natsort==8.4.0
 huggingface-hub[torch]>=0.22

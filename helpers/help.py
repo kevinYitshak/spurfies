@@ -22,12 +22,12 @@ def run_help(args):
     logger.info(f"gpu -> {args.gpu}")
     os.environ["CUDA_VISIBLE_DEVICES"] = '{0}'.format(args.gpu)
 
-    if not args.prevent_oom:
-        try:
-            args.prevent_oom = check_CUDA_OOM(gpu_id=args.gpu, min_cuda_memory=12)
-        except:
-            args.prevent_oom = False
-            logger.warning(f"nvidia-smi is down.")
+    # if not args.prevent_oom:
+    #     try:
+    #         args.prevent_oom = check_CUDA_OOM(gpu_id=args.gpu, min_cuda_memory=12)
+    #     except:
+    #         args.prevent_oom = False
+    #         logger.warning(f"nvidia-smi is down.")
 
     args.vol.dataset.img_res = [args.max_h, args.max_w]
     args.vol.dataset.num_views = args.num_view
@@ -37,7 +37,7 @@ def run_help(args):
     logger.debug(f"img size -> {args.vol.dataset.img_res}")
     logger.debug(f"num_view -> {args.vol.dataset.num_views}")
 
-    assert args.vol.dataset.data_dir in ["dtu", "mipnerf"]
+    assert args.vol.dataset.data_dir in ["dtu", "mipnerf", "own_data"]
 
     os.makedirs(args.outdir, exist_ok=True)
     if not args.filter_only:

@@ -15,6 +15,7 @@ import spurfies.utils.plots as plt
 from spurfies.utils import rend_util
 from spurfies.datasets.dtu import DTUDataset    # DTU
 from spurfies.datasets.mip_nerf import MipDataset
+from spurfies.datasets.own_data import OwnData
 from shutil import copyfile
 
 class VolOpt:
@@ -255,8 +256,10 @@ class VolOpt:
         data_conf["img_res"] = [int(_ / 4.0) for _ in data_conf["img_res"]]
         if self.conf.get_string("dataset.data_dir") == 'dtu':
             self.plot_dataset = DTUDataset(**data_conf)
-        else:
+        elif self.conf.get_string("dataset.data_dir") == 'mipnerf':
             self.plot_dataset = MipDataset(**data_conf)
+        elif self.conf.get_string("dataset.data_dir") == 'own_data':
+            self.plot_dataset = OwnData(**data_conf)
         self.plot_dataloader = torch.utils.data.DataLoader(
             self.plot_dataset,
             batch_size=self.conf.get_int("plot.plot_nimgs"),
@@ -268,8 +271,12 @@ class VolOpt:
         data_conf_stg = self.data_confs[stg]
         if self.conf.get_string("dataset.data_dir") == 'dtu':
             self.train_dataset = DTUDataset(**data_conf_stg)
-        else:
+        elif self.conf.get_string("dataset.data_dir") == 'mipnerf':
             self.train_dataset = MipDataset(**data_conf_stg)
+        elif self.conf.get_string("dataset.data_dir") == 'own_data':
+            self.train_dataset = OwnData(**data_conf_stg)
+        else:
+            NotImplementedError
 
         logger.info(
             "Finish loading data. Data-set size: {0}".format(len(self.train_dataset))

@@ -133,7 +133,7 @@ class PointVolSDF(nn.Module):
         # use fps neural pts
         if self.dataset == 'dtu':
             self.conf.pointcloud_path = f"./data/{self.dataset}/scan{self.scan_id}/{self.scan_id}.ply"
-        elif self.dataset == 'mipnerf':
+        elif self.dataset in ['mipnerf', 'own_data']:
             self.conf.pointcloud_path = f"./data/{self.dataset}/{self.scan_id}/{self.scan_id}.ply"
         else:
             raise NotImplementedError

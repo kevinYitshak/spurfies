@@ -82,7 +82,7 @@ class OwnData(torch.utils.data.Dataset):
         self.pose_all = []
         self.scale_factor = scale_mats[0][0, 0]
 
-        for id_, (path, mask_path) in enumerate(zip(image_paths, mask_paths)):
+        for id_, path in enumerate(image_paths):
             # K, c2w (pose)
             intrinsic, scale_mat, pose = (
                 K[id_],
@@ -95,7 +95,7 @@ class OwnData(torch.utils.data.Dataset):
 
             img = rend_util.load_rgb(path)  # (H, W, 3)
             
-            mask_image = rend_util.load_rgb(mask_path) # np.ones_like(img)
+            mask_image = np.ones_like(img)
             mask_image = mask_image.transpose(2, 0, 1)  # (3, H, W)
             mask_image = mask_image.reshape(3, -1).transpose(
                 1, 0

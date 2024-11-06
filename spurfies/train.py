@@ -148,7 +148,6 @@ class VolOpt:
             trianable_params = []
 
             sdf_feat = []
-            last_layer = []
             for name, param in self.model.named_parameters():
                 if "F_geometry" in name or "T.0" in name:
                     print("Non-trainable params: ", name)
@@ -173,26 +172,16 @@ class VolOpt:
                 torch.Tensor(param) if isinstance(param, tuple) else param
                 for param in sdf_feat
             ]
-            last_layer = [
-                torch.Tensor(param) if isinstance(param, tuple) else param
-                for param in last_layer
-            ]
             self.optimizer = torch.optim.Adam(
                 [
                     {
                         "params": sdf_feat,
                         "lr": 1e-2,
                     },
-                    {
-                        "params": last_layer,
-                        "lr": 5e-4,
-                    },
                     {"params": trianable_params, "lr": self.lr},
                 ]
             )
-            # self.optimizer = torch.optim.Adam(trianable_params, lr=self.lr)
         else:
-        # """
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(

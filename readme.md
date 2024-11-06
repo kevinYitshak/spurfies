@@ -58,7 +58,9 @@ python dust3r_inference_own.py --views 3 --dataset own_data --scan_id 'scene_nam
 ```
 This will save the resized images (512x384), camera pose (opencv format), and the pointcloud in ``/data/own_data/scene_name`` folder obtained from DUSt3R, which we use it to train Spurfies. Note: The quality of the reconstruction depends upon the pointcloud obtained from DUSt3R. **Replace 'scene_name' with your own**
 
-2. Training spurfies:
+An example scene named 'duck' is given.
+
+2.  Optimizing geometry, color latent codes and color network:
 ```bash
 python runner.py testlist=scene_name vol=own_data outdir=results/own_data/scene_name exps_folder=results/own_data/scene_name opt_stepNs=[100_000,0,0]
 ```
@@ -75,7 +77,7 @@ python dust3r_inference.py --views 3 --dataset dtu --scan_id [21,24,34,37,38,40,
 python dust3r_inference.py --views 3 --dataset mipnerf --scan_id [garden,stump]
 ```
 
-2. Training spurfies:
+2. Optimizing geometry, color latent codes and color network:
 
 In this stage, the geometry latent code, color latent code, and color network is optimized using differentiable volume rendering. The geometry network is frozen with local geometry prior.
 ```bash
@@ -114,15 +116,6 @@ Code built upon:
   author={Wu, Haoyu and Graikos, Alexandros and Samaras, Dimitris},
   journal={ICCV},
   year={2023}
-}
-```
-- [DUSt3R: Geometric 3D Vision Made Easy](https://europe.naverlabs.com/research/publications/dust3r-geometric-3d-vision-made-easy/) for obtaining neural points.
-```bibtex
-@inproceedings{dust3r_cvpr24,
-      title={DUSt3R: Geometric 3D Vision Made Easy}, 
-      author={Shuzhe Wang and Vincent Leroy and Yohann Cabon and Boris Chidlovskii and Jerome Revaud},
-      booktitle = {CVPR},
-      year = {2024}
 }
 ```
 
